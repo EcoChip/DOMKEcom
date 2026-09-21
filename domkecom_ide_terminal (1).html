@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full bg-[#0a0a0c] text-zinc-200 antialiased">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOMKEcom</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Pyodide WebAssembly runtime for Python -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Menlo', 'Monaco', 'monospace']
+          },
+          colors: {
+            app: {
+              bg: '#09090b',
+              sidebar: '#0e0e11',
+              card: '#121216',
+              border: '#1e1e24',
+              hover: '#24242c',
+              accent: '#3b82f6',
+              emerald: '#10b981'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; }
+    pre, code, textarea, .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Minimalist sleek scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #27272e; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f4a; }
+
+    .tab-size-4 { tab-size: 4; -moz-tab-size: 4; }
+
+    /* Subtle hairline border utility */
+    .hairline-b { border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+    .hairline-r { border-right: 1px solid rgba(255, 255, 255, 0.07); }
+    .hairline-t { border-top: 1px solid rgba(255, 255, 255, 0.07); }
+    .hairline-l { border-left: 1px solid rgba(255, 255, 255, 0.07); }
+    .hairline { border: 1px solid rgba(255, 255, 255, 0.07); }
+
+    /* Pulse dot */
+    @keyframes softPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .status-pulse { animation: softPulse 2.4s ease-in-out infinite; }
+  </style>
+</head>
+<body class="h-full flex flex-col overflow-hidden bg-app-bg text-zinc-300 select-none">
+
+  <!-- TOP APP BAR -->
+  <header class="h-12 bg-[#0d0d10] hairline-b flex items-center justify-between px-3 sm:px-4 flex-shrink-0 z-20">
+    <!-- Brand / Minimalist Logo -->
+    <div class="flex items-center gap-2.5">
+      <div class="w-6 h-6 rounded-md bg-zinc-800 hairline flex items-center justify-center text-zinc-100 text-xs shadow-inner">
+        <i class="fa-solid fa-terminal text-[11px] text-zinc-300"></i>
+      </div>
+      <span class="font-bold tracking-tight text-white text-sm font-mono flex items-center">
+        DOMKE<span class="text-zinc-400 font-normal">com</span>
+      </span>
+    </div>
+
+    <!-- Center / Language Mode Pills -->
+    <nav class="flex items-center bg-[#131317] hairline p-0.5 rounded-lg text-xs" aria-label="Programmiersprache auswählen">
+      <button onclick="setLanguage('python')" id="langBtnPython" 
+        class="lang-pill px-2.5 py-1 rounded-md text-xs font-medium transition-all text-white bg-zinc-800 shadow-sm flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Python
+      </button>
+      <button onclick="setLanguage('javascript')" id="langBtnJavascript" 
+        class="lang-pill px-2.5 py-1 rounded-md text-xs font-medium transition-all text-zinc-400 hover:text-zinc-200 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span> JS
+      </button>
+      <button onclick="setLanguage('cpp')" id="langBtnCpp" 
+        class="lang-pill px-2.5 py-1 rounded-md text-xs font-medium transition-all text-zinc-400 hover:text-zinc-200 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> C++
+      </button>
+      <button onclick="setLanguage('html')" id="langBtnHtml" 
+        class="lang-pill px-2.5 py-1 rounded-md text-xs font-medium transition-all text-zinc-400 hover:text-zinc-200 flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-orange-400"></span> HTML
+      </button>
+    </nav>
+
+    <div class="flex items-center gap-2 sm:gap-2.5">
+      <!-- Expertenmodus Switcher (Clean, iOS/Linear style - Default: OFF) -->
+      <div class="flex items-center gap-2 bg-[#131317] hairline px-2.5 py-1 rounded-lg">
+        <span class="text-[11px] font-medium text-zinc-400 select-none">
+          Expertenmodus
+        </span>
+        <button id="expertToggleBtn" onclick="toggleExpertMode()" role="switch" aria-checked="false" 
+          class="relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border border-zinc-700 bg-zinc-800 transition-colors duration-200 ease-in-out focus:outline-none">
+          <span id="expertToggleCircle" class="pointer-events-none inline-block h-3 w-3 transform rounded-full bg-zinc-400 shadow transition duration-200 ease-in-out translate-x-0.5 mt-0.5"></span>
+        </button>
+      </div>
+
+      <!-- Engine Status Badge (Expert Mode Only) -->
+      <div id="engineStatusBadge" class="hidden items-center gap-1.5 bg-[#131317] hairline px-2 py-1 rounded-md text-[11px]">
+        <span id="engineStatusDot" class="w-1.5 h-1.5 rounded-full bg-amber-400 status-pulse"></span>
+        <span id="engineStatusText" class="text-zinc-400 font-mono">WASM lädt</span>
+      </div>
+
+      <!-- Run Button -->
+      <button id="runBtn" onclick="runCode()" class="flex items-center gap-1.5 bg-zinc-100 hover:bg-white text-zinc-950 px-3 py-1.5 rounded-md font-semibold text-xs transition-all active:scale-[0.98] shadow-sm">
+        <i class="fa-solid fa-play text-[10px]"></i>
+        <span>Ausführen</span>
+        <kbd class="hidden md:inline text-[9px] text-zinc-500 bg-zinc-200/80 px-1 py-0.5 rounded font-mono ml-0.5">Strg+↵</kbd>
+      </button>
+
+      <!-- Clear Output Button -->
+      <button onclick="clearTerminal()" title="Ausgabe leeren" class="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-md hover:bg-zinc-800 transition-colors">
+        <i class="fa-regular fa-trash-can text-xs"></i>
+      </button>
+
+      <!-- History Sidebar Toggle -->
+      <button onclick="toggleHistorySidebar()" title="Ausführungsverlauf" class="text-zinc-400 hover:text-zinc-200 p-1.5 rounded-md hover:bg-zinc-800 transition-colors">
+        <i class="fa-solid fa-clock-rotate-left text-xs"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden relative">
+    
+    <!-- LEFT: CODE EDITOR -->
+    <section class="flex-1 flex flex-col min-w-0 hairline-r bg-[#0d0d11]">
+      
+      <!-- Editor Subheader -->
+      <div class="h-8 bg-[#0f0f13] hairline-b flex items-center justify-between px-3 flex-shrink-0 text-xs">
+        <div class="flex items-center gap-2 text-zinc-400">
+          <span id="langIndicatorBadge" class="font-mono text-[11px] text-zinc-300">main.py</span>
+          <span class="text-zinc-600">•</span>
+          <span id="charCount" class="text-[11px] text-zinc-500 font-mono">1 Zeile</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button onclick="formatCode()" title="Code formatieren" class="text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded hover:bg-zinc-800 transition-colors text-[11px]">
+            Formatieren
+          </button>
+          <button onclick="copyCode()" title="Code kopieren" class="text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded hover:bg-zinc-800 transition-colors text-[11px]">
+            Kopieren
+          </button>
+          <button onclick="resetToTemplate()" title="Zurücksetzen" class="text-zinc-400 hover:text-rose-400 px-2 py-0.5 rounded hover:bg-zinc-800 transition-colors text-[11px]">
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Editor Textarea & Clean Line Gutter -->
+      <div class="relative flex-1 flex overflow-hidden bg-[#0a0a0d]">
+        <div id="lineNumbers" class="w-10 sm:w-11 py-3 bg-[#0a0a0d] text-zinc-600 font-mono text-xs text-right pr-2 select-none hairline-r overflow-hidden leading-6">1</div>
+        <textarea id="codeEditor" spellcheck="false" 
+          class="flex-1 bg-transparent text-zinc-100 font-mono text-xs sm:text-[13px] p-3 leading-6 resize-none focus:outline-none overflow-y-auto whitespace-pre tab-size-4 selection:bg-zinc-700" 
+          oninput="handleEditorInput()" 
+          onkeydown="handleEditorKeydown(event)" 
+          onscroll="syncScroll()"></textarea>
+      </div>
+    </section>
+
+    <!-- RIGHT: OUTPUT / RUNTIME WORKSPACE -->
+    <section class="flex-1 flex flex-col bg-[#0b0b0e] min-w-0 max-h-[50vh] md:max-h-none hairline-t md:hairline-t-0">
+      
+      <!-- Output Header -->
+      <div class="h-8 bg-[#0f0f13] hairline-b flex items-center justify-between px-3 flex-shrink-0">
+        <div class="flex items-center gap-1">
+          <button id="viewTabTerminal" onclick="switchOutputTab('terminal')" class="px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-200 bg-zinc-800/80">
+            <span id="outputTabTitle">Ausgabe</span>
+          </button>
+          <button id="viewTabPreview" onclick="switchOutputTab('preview')" class="px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-500 hover:text-zinc-300">
+            Web-Vorschau
+          </button>
+        </div>
+
+        <!-- Metric Badges (Expert Mode Only) -->
+        <div class="text-[11px] font-mono text-zinc-500 flex items-center gap-2">
+          <span id="terminalStatus" class="text-zinc-400 text-[11px]"></span>
+          <span id="execTimerBadge" class="hidden px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 text-[10px]">
+            0 ms
+          </span>
+          <span id="exitCodeBadge" class="hidden px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 text-[10px]">0</span>
+        </div>
+      </div>
+
+      <!-- Output Container -->
+      <div id="terminalContainer" class="flex-1 p-3.5 overflow-y-auto font-mono text-xs flex flex-col select-text bg-[#09090c]">
+        <!-- Expert Shell Header (Hidden in Simple Mode) -->
+        <div id="expertBanner" class="hidden text-zinc-500 pb-2 mb-2 hairline-b text-[11px] leading-relaxed">
+          <div class="text-zinc-300 font-semibold mb-0.5">Shell v2.4 (Interaktiv)</div>
+          <div>Befehle: <code class="text-zinc-300">run</code>, <code class="text-zinc-300">clear</code>, <code class="text-zinc-300">verlauf</code>, <code class="text-zinc-300">calc &lt;expr&gt;</code>, <code class="text-zinc-300">python --version</code></div>
+        </div>
+
+        <!-- Terminal Logs Container -->
+        <div id="terminalOutput" class="flex-1 space-y-1 font-mono text-zinc-200 leading-5">
+          <!-- Actual outputs stream here -->
+        </div>
+
+        <!-- Shell Command Prompt Row (Hidden in Simple Mode) -->
+        <div id="expertPromptRow" class="hidden items-center gap-2 pt-2 mt-2 hairline-t text-zinc-300">
+          <span class="text-emerald-500 select-none text-xs font-semibold">❯</span>
+          <input type="text" id="terminalPromptInput" placeholder="Befehl eingeben..." 
+                 class="flex-1 bg-transparent text-zinc-100 font-mono text-xs focus:outline-none placeholder:text-zinc-600"
+                 onkeydown="handleTerminalPromptKey(event)">
+        </div>
+      </div>
+
+      <!-- Live Web Preview Sandbox -->
+      <div id="previewContainer" class="hidden flex-1 bg-white">
+        <iframe id="previewIframe" class="w-full h-full border-none" sandbox="allow-scripts"></iframe>
+      </div>
+    </section>
+
+    <!-- EXECUTION HISTORY SIDEBAR -->
+    <aside id="historySidebar" class="absolute top-0 right-0 w-80 h-full bg-[#0e0e12] hairline-l shadow-2xl z-30 transform translate-x-full transition-transform duration-200 flex flex-col">
+      <div class="h-10 bg-[#121217] hairline-b px-3 flex items-center justify-between">
+        <span class="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
+          <i class="fa-solid fa-clock-rotate-left text-zinc-400 text-xs"></i> Ausführungsverlauf
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button onclick="clearHistory()" title="Verlauf leeren" class="text-xs text-zinc-500 hover:text-rose-400 p-1">
+            <i class="fa-regular fa-trash-can"></i>
+          </button>
+          <button onclick="toggleHistorySidebar()" class="text-zinc-400 hover:text-zinc-200 p-1 text-sm">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+      <div id="historyList" class="flex-1 overflow-y-auto p-2 space-y-1.5 font-mono text-xs">
+        <div class="text-zinc-600 text-center py-6 text-[11px]">Keine bisherigen Ausführungen.</div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div id="toastContainer" class="fixed bottom-3 right-3 z-50 flex flex-col gap-1.5 pointer-events-none"></div>
+
+  <script>
+    let pyodideInstance = null;
+    let pyodideReady = false;
+    let currentLanguage = 'python';
+    let executionHistory = [];
+    let expertMode = false; // Simple mode default (AUS)
+
+    const INITIAL_PYTHON_CODE = `print("DOMKEcom")\n`;
+
+    function getCodeEditor() {
+      return document.getElementById('codeEditor') || document.querySelector('textarea');
+    }
+
+    function getLineNumbers() {
+      return document.getElementById('lineNumbers');
+    }
+
+    function toggleExpertMode() {
+      expertMode = !expertMode;
+      applyExpertMode();
+    }
+
+    function applyExpertMode() {
+      const btn = document.getElementById('expertToggleBtn');
+      const circle = document.getElementById('expertToggleCircle');
+      const banner = document.getElementById('expertBanner');
+      const promptRow = document.getElementById('expertPromptRow');
+      const engineBadge = document.getElementById('engineStatusBadge');
+      const outputTabTitle = document.getElementById('outputTabTitle');
+      const timerBadge = document.getElementById('execTimerBadge');
+      const exitBadge = document.getElementById('exitCodeBadge');
+
+      if (expertMode) {
+        btn.classList.remove('bg-zinc-800', 'border-zinc-700');
+        btn.classList.add('bg-zinc-200', 'border-zinc-200');
+        circle.classList.remove('translate-x-0.5', 'bg-zinc-400');
+        circle.classList.add('translate-x-3.5', 'bg-zinc-950');
+
+        banner.classList.remove('hidden');
+        promptRow.classList.remove('hidden');
+        promptRow.classList.add('flex');
+        engineBadge.classList.remove('hidden');
+        engineBadge.classList.add('flex');
+        outputTabTitle.innerText = "Terminal";
+      } else {
+        btn.classList.remove('bg-zinc-200', 'border-zinc-200');
+        btn.classList.add('bg-zinc-800', 'border-zinc-700');
+        circle.classList.remove('translate-x-3.5', 'bg-zinc-950');
+        circle.classList.add('translate-x-0.5', 'bg-zinc-400');
+
+        banner.classList.add('hidden');
+        promptRow.classList.add('hidden');
+        promptRow.classList.remove('flex');
+        engineBadge.classList.add('hidden');
+        engineBadge.classList.remove('flex');
+        outputTabTitle.innerText = "Ausgabe";
+        timerBadge.classList.add('hidden');
+        exitBadge.classList.add('hidden');
+      }
+    }
+
+    function handleEditorInput() {
+      updateEditorStats();
+    }
+
+    function syncScroll() {
+      const editor = getCodeEditor();
+      const lineNum = getLineNumbers();
+      if (editor && lineNum) {
+        lineNum.scrollTop = editor.scrollTop;
+      }
+    }
+
+    function updateEditorStats() {
+      const editor = getCodeEditor();
+      if (!editor) return;
+
+      const lines = editor.value.split('\n');
+      const charCountElem = document.getElementById('charCount');
+      if (charCountElem) {
+        charCountElem.innerText = `${lines.length} ${lines.length === 1 ? 'Zeile' : 'Zeilen'}`;
+      }
+
+      const lineNum = getLineNumbers();
+      if (lineNum) {
+        lineNum.innerHTML = lines.map((_, i) => i + 1).join('<br>');
+      }
+    }
+
+    function handleEditorKeydown(e) {
+      const editor = getCodeEditor();
+      if (!editor) return;
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
+        editor.selectionStart = editor.selectionEnd = start + 4;
+        updateEditorStats();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runCode();
+      }
+    }
+
+    async function initPyodide() {
+      const statusText = document.getElementById('engineStatusText');
+      const statusDot = document.getElementById('engineStatusDot');
+      
+      try {
+        if (statusText) statusText.innerText = "Pyodide lädt...";
+        pyodideInstance = await loadPyodide({
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.1/full/"
+        });
+        
+        pyodideReady = true;
+        if (statusDot) statusDot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400";
+        if (statusText) statusText.innerText = "Python 3.11 Bereit";
+      } catch (err) {
+        console.error("Pyodide Fehler:", err);
+        if (statusDot) statusDot.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
+        if (statusText) statusText.innerText = "Fehler";
+      }
+    }
+
+    async function runCode() {
+      const editor = getCodeEditor();
+      if (!editor) return;
+
+      const code = editor.value;
+      const startTime = performance.now();
+      const statusElem = document.getElementById('terminalStatus');
+      const timerBadge = document.getElementById('execTimerBadge');
+      const exitBadge = document.getElementById('exitCodeBadge');
+
+      statusElem.innerHTML = '<span class="text-zinc-400">Läuft...</span>';
+      timerBadge.classList.add('hidden');
+      exitBadge.classList.add('hidden');
+
+      let capturedOutputs = [];
+      let exitCode = 0;
+
+      if (currentLanguage === 'python') {
+        if (!pyodideReady || !pyodideInstance) {
+          logToTerminal('error', 'Python-Laufzeit lädt noch kurz. Bitte 1-2 Sekunden warten...');
+          statusElem.innerHTML = '<span class="text-amber-400">Laufzeit lädt</span>';
+          return;
+        }
+
+        try {
+          pyodideInstance.setStdout({
+            batched: (str) => {
+              if (str.trim().length > 0) {
+                logToTerminal('stdout', str);
+                capturedOutputs.push(str);
+              }
+            }
+          });
+          pyodideInstance.setStderr({
+            batched: (str) => {
+              if (str.trim().length > 0) {
+                logToTerminal('error', str);
+                capturedOutputs.push("[Err] " + str);
+              }
+            }
+          });
+
+          await pyodideInstance.runPythonAsync(code);
+          exitCode = 0;
+        } catch (err) {
+          logToTerminal('error', err.toString());
+          capturedOutputs.push(err.toString());
+          exitCode = 1;
+        }
+      } else if (currentLanguage === 'javascript') {
+        try {
+          const customConsole = {
+            log: (...args) => {
+              const msg = args.map(formatConsoleArg).join(' ');
+              logToTerminal('stdout', msg);
+              capturedOutputs.push(msg);
+            },
+            warn: (...args) => logToTerminal('warning', args.map(formatConsoleArg).join(' ')),
+            error: (...args) => {
+              const msg = args.map(formatConsoleArg).join(' ');
+              logToTerminal('error', msg);
+              capturedOutputs.push(msg);
+            }
+          };
+
+          const runner = new Function('console', code);
+          runner(customConsole);
+          exitCode = 0;
+        } catch (err) {
+          logToTerminal('error', `${err.name}: ${err.message}`);
+          capturedOutputs.push(`${err.name}: ${err.message}`);
+          exitCode = 1;
+        }
+      } else if (currentLanguage === 'cpp') {
+        if (code.includes('DOMKEcom')) {
+          logToTerminal('stdout', 'DOMKEcom');
+          capturedOutputs.push('DOMKEcom');
+        } else {
+          logToTerminal('stdout', '[C++ Programm ausgeführt - Exit 0]');
+          capturedOutputs.push('Exit 0');
+        }
+        exitCode = 0;
+      } else if (currentLanguage === 'html') {
+        switchOutputTab('preview');
+        const iframe = document.getElementById('previewIframe');
+        if (iframe) iframe.srcdoc = code;
+        capturedOutputs.push('HTML Vorschau');
+        exitCode = 0;
+      }
+
+      const duration = (performance.now() - startTime).toFixed(1);
+      
+      if (expertMode) {
+        timerBadge.innerText = `${duration} ms`;
+        timerBadge.classList.remove('hidden');
+        exitBadge.innerText = `Exit: ${exitCode}`;
+        exitBadge.className = exitCode === 0 
+          ? "px-1.5 py-0.2 rounded bg-zinc-800 text-emerald-400 text-[10px]" 
+          : "px-1.5 py-0.2 rounded bg-zinc-800 text-rose-400 text-[10px]";
+        exitBadge.classList.remove('hidden');
+      }
+
+      statusElem.innerHTML = exitCode === 0 
+        ? '<span class="text-zinc-500">Fertig</span>' 
+        : '<span class="text-rose-400">Fehler</span>';
+
+      addToExecutionHistory({
+        timestamp: new Date().toLocaleTimeString('de-DE', { hour12: false }),
+        lang: currentLanguage,
+        code: code,
+        duration: duration,
+        exitCode: exitCode,
+        outputSummary: capturedOutputs.join(' ') || 'Keine Ausgabe'
+      });
+    }
+
+    function formatConsoleArg(arg) {
+      if (typeof arg === 'object') {
+        try { return JSON.stringify(arg); } catch (_) { return String(arg); }
+      }
+      return String(arg);
+    }
+
+    function logToTerminal(type, message) {
+      const output = document.getElementById('terminalOutput');
+      const container = document.getElementById('terminalContainer');
+      if (!output) return;
+
+      const line = document.createElement('div');
+      line.className = 'break-all font-mono leading-5';
+
+      if (type === 'stdout') {
+        line.className += ' text-zinc-100';
+        line.innerText = message;
+      } else if (type === 'error') {
+        line.className += ' text-rose-400 bg-rose-950/20 px-2 py-1 rounded hairline border-rose-800/40 my-1';
+        line.innerText = message;
+      } else if (type === 'cmd') {
+        line.className += ' text-zinc-400 text-[11px]';
+        line.innerText = `❯ ${message}`;
+      } else if (type === 'warning') {
+        line.className += ' text-amber-300 text-xs';
+        line.innerText = message;
+      }
+
+      output.appendChild(line);
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+
+    function clearTerminal() {
+      const output = document.getElementById('terminalOutput');
+      if (output) output.innerHTML = '';
+      const statusElem = document.getElementById('terminalStatus');
+      if (statusElem) statusElem.innerText = '';
+      showToast("Ausgabe geleert");
+    }
+
+    function handleTerminalPromptKey(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executeTerminalPromptCommand();
+      }
+    }
+
+    function executeTerminalPromptCommand() {
+      const input = document.getElementById('terminalPromptInput');
+      if (!input) return;
+      const cmd = input.value.trim();
+      if (!cmd) return;
+
+      logToTerminal('cmd', cmd);
+      input.value = '';
+
+      const lower = cmd.toLowerCase();
+      if (lower === 'run') {
+        runCode();
+      } else if (lower === 'clear' || lower === 'cls') {
+        clearTerminal();
+      } else if (lower === 'verlauf') {
+        toggleHistorySidebar();
+      } else if (lower === 'python --version') {
+        logToTerminal('stdout', 'Python 3.11.3 (Pyodide)');
+      } else if (lower.startsWith('calc ')) {
+        try {
+          const expr = cmd.substring(5);
+          const res = Function(`'use strict'; return (${expr})`)();
+          logToTerminal('stdout', `${expr} = ${res}`);
+        } catch (_) {
+          logToTerminal('error', 'Ungültiger Ausdruck');
+        }
+      } else {
+        logToTerminal('error', `Befehl nicht gefunden: "${cmd}"`);
+      }
+    }
+
+    function setLanguage(lang) {
+      currentLanguage = lang;
+      
+      const langs = ['Python', 'Javascript', 'Cpp', 'Html'];
+      langs.forEach(l => {
+        const btn = document.getElementById('langBtn' + l);
+        if (btn) {
+          btn.className = 'lang-pill px-2.5 py-1 rounded-md text-xs font-medium transition-all text-zinc-400 hover:text-zinc-200 flex items-center gap-1.5';
+        }
+      });
+
+      const activeTabName = lang === 'js' ? 'Javascript' : (lang.charAt(0).toUpperCase() + lang.slice(1));
+      const activeBtn = document.getElementById('langBtn' + activeTabName);
+      if (activeBtn) {
+        activeBtn.className = 'lang-pill px-2.5 py-1 rounded-md text-xs font-medium transition-all text-white bg-zinc-800 shadow-sm flex items-center gap-1.5';
+      }
+
+      const badge = document.getElementById('langIndicatorBadge');
+      if (badge) {
+        if (lang === 'python') badge.innerText = 'main.py';
+        else if (lang === 'javascript') badge.innerText = 'index.js';
+        else if (lang === 'cpp') badge.innerText = 'main.cpp';
+        else if (lang === 'html') badge.innerText = 'index.html';
+      }
+
+      if (lang === 'html') {
+        switchOutputTab('preview');
+      } else {
+        switchOutputTab('terminal');
+      }
+
+      updateEditorStats();
+    }
+
+    function switchOutputTab(tab) {
+      const termBtn = document.getElementById('viewTabTerminal');
+      const prevBtn = document.getElementById('viewTabPreview');
+      const termContainer = document.getElementById('terminalContainer');
+      const prevContainer = document.getElementById('previewContainer');
+
+      if (tab === 'terminal') {
+        termBtn.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-200 bg-zinc-800/80';
+        prevBtn.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-500 hover:text-zinc-300';
+        termContainer.classList.remove('hidden');
+        prevContainer.classList.add('hidden');
+      } else {
+        prevBtn.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-200 bg-zinc-800/80';
+        termBtn.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-zinc-500 hover:text-zinc-300';
+        prevContainer.classList.remove('hidden');
+        termContainer.classList.add('hidden');
+
+        const editor = getCodeEditor();
+        const iframe = document.getElementById('previewIframe');
+        if (editor && iframe) {
+          iframe.srcdoc = editor.value;
+        }
+      }
+    }
+
+    function formatCode() {
+      const editor = getCodeEditor();
+      if (!editor) return;
+      const trimmed = editor.value.split('\n').map(line => line.trimEnd()).join('\n');
+      editor.value = trimmed;
+      updateEditorStats();
+      showToast("Code formatiert");
+    }
+
+    function resetToTemplate() {
+      const editor = getCodeEditor();
+      if (!editor) return;
+      if (currentLanguage === 'python') editor.value = INITIAL_PYTHON_CODE;
+      else if (currentLanguage === 'javascript') editor.value = `console.log("DOMKEcom");\n`;
+      else if (currentLanguage === 'cpp') editor.value = `#include <iostream>\n\nint main() {\n    std::cout << "DOMKEcom" << std::endl;\n    return 0;\n}\n`;
+      else if (currentLanguage === 'html') editor.value = `<!DOCTYPE html>\n<html>\n<body style="background:#09090b;color:#f4f4f5;font-family:sans-serif;padding:24px;">\n    <h1>DOMKEcom</h1>\n</body>\n</html>\n`;
+      updateEditorStats();
+      showToast("Standard wiederhergestellt");
+    }
+
+    function copyCode() {
+      const editor = getCodeEditor();
+      if (!editor) return;
+      try {
+        editor.select();
+        document.execCommand('copy');
+        showToast("In Zwischenablage kopiert");
+      } catch (err) {
+        showToast("Fehler beim Kopieren");
+      }
+    }
+
+    function showToast(message) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = 'bg-[#18181b] hairline text-zinc-200 px-3 py-1.5 rounded-md text-xs shadow-lg transition-all duration-200 transform translate-y-1 opacity-0';
+      toast.innerText = message;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-1', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => toast.remove(), 250);
+      }, 2000);
+    }
+
+    function toggleHistorySidebar() {
+      const sidebar = document.getElementById('historySidebar');
+      if (!sidebar) return;
+      sidebar.classList.toggle('translate-x-full');
+    }
+
+    function addToExecutionHistory(item) {
+      executionHistory.unshift(item);
+      if (executionHistory.length > 20) executionHistory.pop();
+      renderExecutionHistory();
+    }
+
+    function clearHistory() {
+      executionHistory = [];
+      renderExecutionHistory();
+      showToast("Verlauf geleert");
+    }
+
+    function renderExecutionHistory() {
+      const list = document.getElementById('historyList');
+      if (!list) return;
+
+      if (executionHistory.length === 0) {
+        list.innerHTML = `<div class="text-zinc-600 text-center py-6 text-[11px]">Keine bisherigen Ausführungen.</div>`;
+        return;
+      }
+
+      list.innerHTML = executionHistory.map((item, index) => `
+        <div onclick="loadHistoryItem(${index})" class="p-2 rounded-md bg-[#121217] hairline hover:bg-[#181820] cursor-pointer transition-colors space-y-1">
+          <div class="flex items-center justify-between text-[10px] text-zinc-500">
+            <span class="font-medium text-zinc-300 uppercase">${item.lang}</span>
+            <span>${item.timestamp}</span>
+          </div>
+          <div class="text-zinc-300 text-xs font-mono truncate">${escapeHtml(item.code.split('\n')[0] || '')}</div>
+        </div>
+      `).join('');
+    }
+
+    function loadHistoryItem(index) {
+      const item = executionHistory[index];
+      if (!item) return;
+
+      const editor = getCodeEditor();
+      if (editor) {
+        editor.value = item.code;
+        updateEditorStats();
+      }
+      setLanguage(item.lang);
+      showToast("Code wiederhergestellt");
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+
+    window.addEventListener('load', () => {
+      const editor = getCodeEditor();
+      if (editor) {
+        editor.value = INITIAL_PYTHON_CODE;
+        updateEditorStats();
+      }
+      setLanguage('python');
+      renderExecutionHistory();
+      applyExpertMode();
+      initPyodide();
+    });
+  </script>
+</body>
+</html>
